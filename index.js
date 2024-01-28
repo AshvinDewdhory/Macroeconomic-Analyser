@@ -3,6 +3,7 @@ const csv = require('csv-parser');
 const filePath = 'CPI Timeseries.csv';
 const axios = require('axios');
 const mysql = require('mysql2/promise');
+const { totalmem } = require('os');
 
 const worldBankApiUrl = 'http://api.worldbank.org/V2';
 const worldBankIndicators = [ 'ER.FSH.PROD.MT',   // Total fisheries production (metric tons)
@@ -82,29 +83,41 @@ function transformData(data) {
 // Step 3: Extract Data from World Bank API
 async function extractWorldBankData() {
     try {
-        const responses = (await axios.get(`${worldBankApiUrl}/country/${worldBankCountriesCodes.join(';')}/indicator/${worldBankIndicators.join(';')}?format=json&date=2019:2022&source=2`)).data[1];
-        
-        const data = responses.reduce((result, response, index) => {
-            //console.log(result, response, index);
+        let page = 1;
+        let totalPages = 0;
+        let results = [];
 
-            responses.forEach(entry => {
-                result.push({
+        do {
+            const responses = await getWorldBankData(page);
+            //console.log(responses);
+            totalPages = responses.data[0].pages;
+
+            results.push(...responses.data[1].map((response) => {
+                return {
                     IndicatorName : response.indicator.value,
                     IndicatorCode : response.indicator.id,
-                    CountryCode: entry.countryiso3code,
-                    Year: entry.date,
-                    Value: entry.value || null,
+                    CountryCode: response.countryiso3code,
+                    Year: response.date,
+                    Value: response.value || null,
                     Rank : null
-                });
-            });
-            //console.log(result);
-            return result;
-        }, []);
+                };
+            }));
+
+            page = page + 1;
+        }
+        while (page <= totalPages);
+        
         //console.log(data);
-        return data;
+        return results;
     } catch (error) {
         throw error;
     }
+}
+
+async function getWorldBankData(page) {
+    const responses = (await axios.get(`${worldBankApiUrl}/country/${worldBankCountriesCodes.join(';')}/indicator/${worldBankIndicators.join(';')}?format=json&date=2019:2022&source=2&per_page=100&page=${page}`));
+    //console.log(responses.data)
+    return responses;
 }
 
 // Step 3: Load Data
@@ -130,6 +143,32 @@ async function loadData(data) {
     }
 }
 
+// Step 4: Update Rank Column
+async function updateRank() {
+    const connection = await mysql.createConnection(dbConfig);
+    
+    try {
+
+        // Update Rank field in indicator_info table
+        await connection.query(`
+            UPDATE INDICATOR_INFO i1
+               SET i1.RANK = (SELECT COUNT(*) + 1
+                                FROM INDICATOR_INFO i2
+                               WHERE i2.NAME = i1.NAME
+                                 AND i2.YEAR = i1.YEAR
+                                 AND i2.VALUE IS NOT NULL
+                                 AND i2.VALUE < i1.VALUE)
+        `);
+
+        console.log('Rank field in indicator_info table updated successfully.');
+    } catch (error) {
+        console.error('Error loading CPI data into the database:', error);
+    } finally {
+        // Close the database connection
+        await connection.end();
+    }
+}
+
 async function runDataPipeline(filePath) {
     try {
         // Step 1: Extract Data
@@ -147,4 +186,5 @@ async function runDataPipeline(filePath) {
     }
 }
 
-runDataPipeline(filePath);
+//runDataPipeline(filePath);
+updateRank();
