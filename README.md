@@ -1,3 +1,3 @@
 # Macroeconomic-Analyser
 
-https://app.powerbi.com/reportEmbed?reportId=49a63eb5-10a5-444b-88f5-095fa5a87e27&autoAuth=true&ctid=7526888e-af7f-4ebd-97ef-26c5cdef51cc
+https://app.powerbi.com/reportEmbed?reportId=b31be9ac-0db6-488d-88c0-7b072cc0bb57&autoAuth=true&ctid=0af08255-c76b-48c0-8dc2-0dfdbf7bae40

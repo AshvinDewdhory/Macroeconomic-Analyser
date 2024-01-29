@@ -14,20 +14,7 @@ const worldBankIndicators = [ 'ER.FSH.PROD.MT',   // Total fisheries production 
 'SL.EMP.SELF.ZS'    // Self-employed, total (% of total employment) (modelled ILO estimate)
 ]; // Add more indicators as needed
 
-const worldBankCountriesCodes = [ 'SYC',   // Seychelles
-'MDV',   // Maldives
-'CIV',   // Côte d'ivoire
-'KEN',   // Kenya
-'LKA',   // Sri Lanka
-'IND',   // India
-'SGP',   // Singapore
-'AUS',   // Australia
-'DNK',   // Denmark
-'FIN'    // Finland
-];
-
 // database connection
-
 const dbConfig = {
     host: 'localhost',
     user: 'root',
@@ -115,8 +102,7 @@ async function extractWorldBankData() {
 }
 
 async function getWorldBankData(page) {
-    const responses = (await axios.get(`${worldBankApiUrl}/country/${worldBankCountriesCodes.join(';')}/indicator/${worldBankIndicators.join(';')}?format=json&date=2019:2022&source=2&per_page=100&page=${page}`));
-    //console.log(responses.data)
+    const responses = (await axios.get(`${worldBankApiUrl}/country/all/indicator/${worldBankIndicators.join(';')}?format=json&date=2019:2022&source=2&per_page=100&page=${page}`));
     return responses;
 }
 
@@ -156,8 +142,9 @@ async function updateRank() {
                                 FROM INDICATOR_INFO i2
                                WHERE i2.NAME = i1.NAME
                                  AND i2.YEAR = i1.YEAR
-                                 AND i2.VALUE IS NOT NULL
-                                 AND i2.VALUE < i1.VALUE)
+                                 AND i2.VALUE > i1.VALUE)
+              WHERE i1.INDICATORCODE != 'CPI'
+                AND i1.VALUE IS NOT NULL
         `);
 
         console.log('Rank field in indicator_info table updated successfully.');
@@ -179,12 +166,14 @@ async function runDataPipeline(filePath) {
         const worldBankData = await extractWorldBankData();
 
         // Step 3: Load Data
-        loadData([...worldBankData, ...transformedData]);
+        await loadData([...worldBankData, ...transformedData]);
+
+        //Step 4: Update Rank column in indicator_info table
+        await updateRank(); 
 
     } catch (error) {
         console.error('Error in data pipeline:', error);
     }
 }
 
-//runDataPipeline(filePath);
-updateRank();
+runDataPipeline(filePath);
