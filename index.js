@@ -163,3 +163,8 @@ async function runDataPipeline(filePath) {
 }
 
 runDataPipeline(filePath);
+
+module.exports = {
+    extractCsvData,
+    transformCsvData
+}

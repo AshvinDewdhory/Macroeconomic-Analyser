@@ -14,5 +14,8 @@
     "csv-parser": "^3.0.0",
     "fs": "^0.0.1-security",
     "mysql2": "^3.9.0"
+  },
+  "devDependencies": {
+    "mocha": "^10.2.0"
   }
 }
